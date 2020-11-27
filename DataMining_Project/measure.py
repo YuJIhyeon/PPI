@@ -43,13 +43,71 @@ def f_measure(result_list, groundtruth):
             t_f_measure = 2 * (recall * precision) / (recall + precision)
             t_f_measure = round(t_f_measure, 3)
 
+
             if prev_f_mesure[0] < t_f_measure:
                 prev_f_mesure[0] = t_f_measure
                 prev_f_mesure[1] = based_data[b_key]
                 prev_f_mesure[2] = gr_data.copy()
+
         f_measure_list.append(prev_f_mesure.copy())
 
     return f_measure_list, level_list
+
+def measure(result_list, groundtruth):
+    measure_dict = dict()
+    gt_id = -1
+    for gt in groundtruth:
+        gt_id += 1
+        for output_data in result_list:
+            key = list(output_data.keys())[0]
+            union = gt | output_data[key]
+
+            if union == gt:
+                if measure_dict.get(gt_id) == None:
+                    measure_dict[gt_id] = list()
+                    measure_dict[gt_id].append(output_data[key])
+                else:
+                    measure_dict[gt_id].append(output_data[key])
+
+    return measure_dict
+
+def output_to_merge_with_gt(filename, measure_dict, groundtruth):
+    file = open(filename, 'w')
+
+    compare_list = list()
+    for key_index in measure_dict.keys():
+        merge_data = set()
+        for cluster_list in measure_dict[key_index]:
+            for data in cluster_list:
+                merge_data.add(data)
+
+        intersection = groundtruth[key_index] & merge_data
+        data_measure = len(intersection) / len(groundtruth[key_index])
+
+        tmp = list()
+        tmp.append(data_measure)
+        tmp.append(merge_data.copy())
+
+        compare_list.append(tmp)
+
+    len_num = range(len(measure_dict))
+
+    compare_list = merge_key_with_list(measure_dict, compare_list)
+    compare_list.sort(reverse=True)
+    for res_d in compare_list:
+        file.write(f"{res_d[0]}\n")
+        file.write(f"MG({len(res_d[1])}) : {res_d[1]}\n")
+        file.write(f"GT({len(groundtruth[res_d[2]])}) : {groundtruth[res_d[2]]}\n")
+        file.write(f"****\n")
+
+def merge_key_with_list(measure_dict, compare_list):
+    keys = list(measure_dict.keys())
+
+    for i, data in enumerate(compare_list):
+        data.append(keys[i])
+
+    return compare_list
+
 
 def output_to_file_by_lv(filename, f_measure_list, level_list):
     file = open(filename, 'w')
@@ -102,6 +160,7 @@ def main():
     input_filename = 'result.txt'
     result_list = initial_data(input_filename)
     groundtruth = read_groundtruth('groundtruth.txt')
+    measure_dict = measure(result_list, groundtruth)
     f_measure_list, level_list = f_measure(result_list, groundtruth)
 
     # 결과 값 출력 ------------
@@ -109,6 +168,13 @@ def main():
     output2_filename = 'f_measure_by_score.txt'
     output_to_file_by_lv(output1_filename, f_measure_list, level_list)
     output_to_file_by_score(output2_filename, f_measure_list, level_list)
+
+    output1_filename = 'measure_by_lv.txt'
+    output2_filename = 'measure_by_score.txt'
+    output_to_merge_with_gt(output1_filename, measure_dict, groundtruth)
+
+
+
 
 
 if __name__ == '__main__':
