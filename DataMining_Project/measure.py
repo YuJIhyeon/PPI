@@ -1,3 +1,4 @@
+import numpy as np
 def initial_data(filename):
     result_list = list()
     tmp_dict = dict()
@@ -56,13 +57,14 @@ def f_measure(result_list, groundtruth):
 def measure(result_list, groundtruth):
     measure_dict = dict()
     gt_id = -1
+    threshold = 3
     for gt in groundtruth:
         gt_id += 1
         for output_data in result_list:
             key = list(output_data.keys())[0]
             union = gt | output_data[key]
 
-            if union == gt:
+            if len(union) - len(gt) <= threshold :
                 if measure_dict.get(gt_id) == None:
                     measure_dict[gt_id] = list()
                     measure_dict[gt_id].append(output_data[key])
@@ -81,24 +83,78 @@ def output_to_merge_with_gt(filename, measure_dict, groundtruth):
             for data in cluster_list:
                 merge_data.add(data)
 
-        intersection = groundtruth[key_index] & merge_data
-        data_measure = len(intersection) / len(groundtruth[key_index])
+        data_measure = round(len(merge_data & groundtruth[key_index]) / len(groundtruth[key_index]), 3)
+        sub_num = abs(len(merge_data) - len(groundtruth[key_index]))
 
         tmp = list()
         tmp.append(data_measure)
+        tmp.append(sub_num)
         tmp.append(merge_data.copy())
 
         compare_list.append(tmp)
 
-    len_num = range(len(measure_dict))
-
     compare_list = merge_key_with_list(measure_dict, compare_list)
     compare_list.sort(reverse=True)
+    err_table = 0
+    result_table = np.zeros((3,4))
     for res_d in compare_list:
-        file.write(f"{res_d[0]}\n")
-        file.write(f"MG({len(res_d[1])}) : {res_d[1]}\n")
-        file.write(f"GT({len(groundtruth[res_d[2]])}) : {groundtruth[res_d[2]]}\n")
+        if res_d[0] == 1:
+            if res_d[1] == 0:
+                result_table[0][0] += 1
+            elif res_d[1] <= 3:
+                result_table[1][0] += 1
+            elif res_d[1] <= 6:
+                result_table[2][0] += 1
+            else:
+                err_table += 1
+        elif res_d[0] > 0.7:
+            if res_d[1] == 0:
+                result_table[0][1] += 1
+            elif res_d[1] <= 3:
+                result_table[1][1] += 1
+            elif res_d[1] <= 6:
+                result_table[2][1] += 1
+            else:
+                err_table += 1
+        elif res_d[0] > 0.4:
+            if res_d[1] == 0:
+                result_table[0][2] += 1
+            elif res_d[1] <= 3:
+                result_table[1][2] += 1
+            elif res_d[1] <= 6:
+                result_table[2][2] += 1
+            else:
+                err_table += 1
+        elif res_d[0] > 0.0:
+            if res_d[1] == 0:
+                result_table[0][3] += 1
+            elif res_d[1] <= 3:
+                result_table[1][3] += 1
+            elif res_d[1] <= 6:
+                result_table[2][3] += 1
+            else:
+                err_table += 1
+        else:
+            err_table += 1
+
+        file.write(f"{res_d[0]}, {res_d[1]}\n")
+        file.write(f"MG({len(res_d[2])}) : {res_d[2]}\n")
+        file.write(f"GT({len(groundtruth[res_d[3]])}) : {groundtruth[res_d[3]]}\n")
         file.write(f"****\n")
+
+    index = ['0 ~ 0', '1 ~ 3', '4 ~ 6']
+    file.write(f"       [ 1 | ~ 0.7 | ~ 0.4 | ~ 0 ]\n")
+    for i, row in enumerate(result_table):
+        file.write(f"{index[i]} :\t")
+        for j in row:
+            file.write(f"{int(j):3}    ")
+        file.write("\n")
+
+    file.write(f"Total : {len(compare_list)}\n")
+    file.write(f"Valid : {len(compare_list) - err_table}, Unvalid : {err_table}\n")
+    file.write(f"Total ratio : {round(len(compare_list) / 734, 3)}\n")
+    file.write(f"Valid ratio : {round((len(compare_list) - err_table) / len(compare_list), 3)}\n")
+
 
 def merge_key_with_list(measure_dict, compare_list):
     keys = list(measure_dict.keys())
