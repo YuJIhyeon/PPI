@@ -168,15 +168,37 @@ def merge_key_with_list(measure_dict, compare_list):
 def output_to_file_by_lv(filename, f_measure_list, level_list):
     file = open(filename, 'w')
     none_conn = list()
+    unique_lv = list()
+    unique_value = set(level_list)
+    sum_list = dict()
+
+    for val in unique_value:
+        unique_lv.append(int(val))
+    unique_lv.sort()
 
     for i, data in enumerate(f_measure_list):
         if data[0] == 0:
             none_conn.append(data)
         else:
-            file.write("*"*20)
+            if sum_list.get(level_list[i]) == None:
+                sum_list[level_list[i]] = data[0]
+            else:
+                sum_list[level_list[i]] += data[0]
+
+            file.write("*" * 20)
             file.write(f"\nLv : {level_list[i]} | Score : {data[0]}\n")
             file.write(f"DA({len(data[1])}) : {data[1]}\n")
             file.write(f"GT({len(data[2])}) : {data[2]}\n")
+
+
+    file.write("*" * 20)
+    file.write("\n")
+
+    file.write(f"Total : {len(level_list)}, Lv_cnt : {len(unique_lv)}\n")
+    file.write("lv : count\n")
+    for i in range(len(unique_lv)):
+        data_count = level_list.count(str(unique_lv[i]))
+        file.write(f"{unique_lv[i]} : {data_count}\n")
 
     file.write("*" * 20)
     file.write("\n")
@@ -193,15 +215,28 @@ def output_to_file_by_score(filename, f_measure_list, level_list):
         data.append(level_list[i])
 
     f_measure_list.sort(reverse=True)
+    range_dict = [0, 0, 0]
 
     for data in f_measure_list:
         if data[0] == 0:
             none_conn.append(data)
         else:
-            file.write("*"*20)
+            if data[0] >= 0.7:
+                range_dict[0] += 1
+            elif data[0] >= 0.4:
+                range_dict[1] += 1
+            else:
+                range_dict[2] += 1
+            file.write("*" * 20)
             file.write(f"\nLv : {data[-1]} | Score : {data[0]}\n")
             file.write(f"DA({len(data[1])}) : {data[1]}\n")
             file.write(f"GT({len(data[2])}) : {data[2]}\n")
+
+    file.write("***********\n")
+    file.write("Score Range : Count\n")
+    file.write(f"0.7 ~ 1.0 : {range_dict[0]}\n")
+    file.write(f"0.4 ~ 0.7 : {range_dict[1]}\n")
+    file.write(f"0.0 ~ 0.4 : {range_dict[2]}\n")
 
     file.write("*" * 20)
     file.write("\n")
